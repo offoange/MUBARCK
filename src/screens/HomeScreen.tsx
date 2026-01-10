@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ImageBackground,
   StatusBar,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -15,6 +16,7 @@ import WellnessCard from '../components/WellnessCard';
 import QuickActionButton from '../components/QuickActionButton';
 import ScheduleItem from '../components/ScheduleItem';
 import BottomNavigation from '../components/BottomNavigation';
+import LocalStorageService, {WellnessData, UserProfile} from '../services/LocalStorageService';
 
 const COLORS = {
   primary: '#6c2bee',
@@ -27,8 +29,64 @@ const COLORS = {
   textSecondary: '#94a3b8',
 };
 
-export default function HomeScreen() {
-  const [activeTab, setActiveTab] = useState('home');
+interface HomeScreenProps {
+  activeTab?: string;
+  onTabPress?: (tab: string) => void;
+  onOpenFocusTimer?: () => void;
+  onOpenBreathingExercise?: () => void;
+  onOpenNotes?: () => void;
+}
+
+export default function HomeScreen({
+  activeTab = 'home',
+  onTabPress,
+  onOpenFocusTimer,
+  onOpenBreathingExercise,
+  onOpenNotes,
+}: HomeScreenProps) {
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [wellnessData, setWellnessData] = useState<WellnessData>({
+    water: {
+      current: 1.2,
+      target: 2,
+    },
+    sleep: {
+      hours: 7,
+      minutes: 20,
+      target: 8,
+    },
+    steps: {
+      current: 3500,
+      target: 8000,
+    },
+  });
+
+  // Charger les données utilisateur et de bien-être au démarrage
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Charger le profil utilisateur
+        const savedProfile = await LocalStorageService.getUserProfile();
+        if (savedProfile) {
+          setUserProfile(savedProfile);
+        }
+
+        // Charger les données de bien-être
+        const savedWellnessData = await LocalStorageService.getWellnessData();
+        if (savedWellnessData) {
+          setWellnessData(savedWellnessData);
+        } else {
+          await LocalStorageService.saveWellnessData(wellnessData);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+        Alert.alert('Erreur', 'Impossible de charger vos données.');
+      }
+    };
+
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -40,7 +98,7 @@ export default function HomeScreen() {
           <View style={styles.avatarContainer}>
             <Image
               source={{
-                uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDv1T6_MgXb2h74tuQcPVMvbw8S4R4pc8Z3-CfWR5oci3d8PSI1QKZ33IPQzRJ1qQjUgGPSmaTTP-oIP1iKm_WGUOu38P3H75umAWRzAXa3NkZkqKRMeonVId2OvWSlMgBSBCreAds8CmeG5LfaCyJLo10LTJrW0BtJgfkrAHBCMW8S24zfS-wum183e4jgZYcZF4dhfi7F9aeHyWwOEK2A1fBqaYMxMs7GPJsNxQ4hCBVzTdFQWrKN0bNe9Tth2LOvB4uhxJp5zAQ',
+                uri: userProfile?.avatar || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDv1T6_MgXb2h74tuQcPVMvbw8S4R4pc8Z3-CfWR5oci3d8PSI1QKZ33IPQzRJ1qQjUgGPSmaTTP-oIP1iKm_WGUOu38P3H75umAWRzAXa3NkZkqKRMeonVId2OvWSlMgBSBCreAds8CmeG5LfaCyJLo10LTJrW0BtJgfkrAHBCMW8S24zfS-wum183e4jgZYcZF4dhfi7F9aeHyWwOEK2A1fBqaYMxMs7GPJsNxQ4hCBVzTdFQWrKN0bNe9Tth2LOvB4uhxJp5zAQ',
               }}
               style={styles.avatar}
             />
@@ -48,7 +106,7 @@ export default function HomeScreen() {
           </View>
           <View>
             <Text style={styles.greeting}>Bonjour,</Text>
-            <Text style={styles.userName}>Mubarak</Text>
+            <Text style={styles.userName}>{userProfile?.name?.split(' ')[0] || 'Utilisateur'}</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.notificationButton}>
@@ -95,23 +153,39 @@ export default function HomeScreen() {
             <WellnessCard
               icon="water-drop"
               label="Eau"
-              value="1.2L"
-              progress={60}
+              value={`${wellnessData.water.current}L`}
+              progress={Math.round((wellnessData.water.current / wellnessData.water.target) * 100)}
               color={COLORS.sky}
             />
             <WellnessCard
               icon="bedtime"
               label="Sommeil"
-              value="7h 20m"
-              progress={85}
+              value={`${wellnessData.sleep.hours}h ${wellnessData.sleep.minutes}m`}
+              progress={Math.round(((wellnessData.sleep.hours * 60 + wellnessData.sleep.minutes) / (wellnessData.sleep.target * 60)) * 100)}
               color={COLORS.primary}
             />
             <WellnessCard
               icon="directions-run"
               label="Pas"
-              value="3,500"
-              progress={45}
+              value={wellnessData.steps.current.toLocaleString()}
+              progress={Math.round((wellnessData.steps.current / wellnessData.steps.target) * 100)}
               color={COLORS.emerald}
+              onPress={async () => {
+                try {
+                  // Simuler une mise à jour des pas (ajout de 500 pas)
+                  const updatedWellnessData = {
+                    ...wellnessData,
+                    steps: {
+                      ...wellnessData.steps,
+                      current: wellnessData.steps.current + 500,
+                    },
+                  };
+                  setWellnessData(updatedWellnessData);
+                  await LocalStorageService.saveWellnessData(updatedWellnessData);
+                } catch (error) {
+                  console.error('Erreur lors de la mise à jour des pas:', error);
+                }
+              }}
             />
           </View>
         </View>
@@ -125,6 +199,7 @@ export default function HomeScreen() {
               title="Minuteur Focus"
               subtitle="25 min"
               color={COLORS.primary}
+              onPress={onOpenFocusTimer}
             />
 
             <QuickActionButton
@@ -132,12 +207,14 @@ export default function HomeScreen() {
               title="Respirer"
               subtitle="3 min détente"
               color={COLORS.emerald}
+              onPress={onOpenBreathingExercise}
             />
             <QuickActionButton
               icon="edit-note"
               title="Notes"
-              subtitle="Écrire ses pensées"
+              subtitle="Révisions"
               color={COLORS.rose}
+              onPress={onOpenNotes}
             />
           </View>
         </View>
@@ -180,7 +257,7 @@ export default function HomeScreen() {
       {/* Bottom Navigation */}
       <BottomNavigation
         activeTab={activeTab}
-        onTabPress={setActiveTab}
+        onTabPress={onTabPress}
         onAddPress={() => console.log('Add pressed')}
       />
     </SafeAreaView>

@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import CircularProgress from './CircularProgress';
 
@@ -9,6 +9,7 @@ interface WellnessCardProps {
   value: string;
   progress: number;
   color: string;
+  onPress?: () => void;
 }
 
 export default function WellnessCard({
@@ -17,9 +18,15 @@ export default function WellnessCard({
   value,
   progress,
   color,
+  onPress,
 }: WellnessCardProps) {
   return (
-    <View style={styles.container}>
+    <TouchableOpacity
+      style={styles.container}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      disabled={!onPress}
+    >
       <CircularProgress
         size={56}
         strokeWidth={3}
@@ -31,7 +38,7 @@ export default function WellnessCard({
         <Text style={styles.label}>{label}</Text>
         <Text style={[styles.value, {color}]}>{value}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

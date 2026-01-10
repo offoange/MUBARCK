@@ -44,8 +44,8 @@ export default function BottomNavigation({
         onPress={() => onTabPress?.('home')}
       />
       <NavItem
-        icon="calendar-today"
-        label="Agenda"
+        icon="event-note"
+        label="Planning"
         isActive={activeTab === 'schedule'}
         onPress={() => onTabPress?.('schedule')}
       />
@@ -55,10 +55,10 @@ export default function BottomNavigation({
         </TouchableOpacity>
       </View>
       <NavItem
-        icon="bar-chart"
-        label="Stats"
-        isActive={activeTab === 'stats'}
-        onPress={() => onTabPress?.('stats')}
+        icon="notifications"
+        label="Rappels"
+        isActive={activeTab === 'reminders'}
+        onPress={() => onTabPress?.('reminders')}
       />
       <NavItem
         icon="person"
