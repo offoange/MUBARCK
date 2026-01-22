@@ -3,7 +3,6 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {ActivityIndicator, View, StyleSheet} from 'react-native';
 import HomeScreen from './src/screens/HomeScreen';
 import RappelsScreen from './src/screens/RappelsScreen';
-import PlanningScreen from './src/screens/PlanningScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
@@ -12,6 +11,9 @@ import FocusTimerScreen from './src/screens/FocusTimerScreen';
 import BreathingExerciseScreen from './src/screens/BreathingExerciseScreen';
 import NotesScreen from './src/screens/NotesScreen';
 import LocalStorageService from './src/services/LocalStorageService';
+import NotificationService from './src/services/NotificationServiceSimple';
+import {ScheduleMainScreen} from './src/screens/schedule';
+import {ScheduleProvider} from './src/context/ScheduleContext';
 
 type AuthScreen = 'loading' | 'onboarding' | 'signup' | 'login' | 'main';
 
@@ -24,14 +26,18 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     checkAuthStatus();
+    // Demander les permissions de notification au démarrage
+    NotificationService.requestPermissions();
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      const isAuthenticated = await LocalStorageService.isAuthenticated();
+      const isLoggedIn = await LocalStorageService.getIsLoggedIn();
       const hasCompletedOnboarding = await LocalStorageService.getHasCompletedOnboarding();
 
-      if (isAuthenticated) {
+      console.log('Auth check - isLoggedIn:', isLoggedIn, 'hasCompletedOnboarding:', hasCompletedOnboarding);
+
+      if (isLoggedIn) {
         setAuthScreen('main');
       } else if (hasCompletedOnboarding) {
         setAuthScreen('login');
@@ -76,7 +82,7 @@ function App(): React.JSX.Element {
         );
       case 'schedule':
         return (
-          <PlanningScreen activeTab={activeTab} onTabPress={handleTabPress} />
+          <ScheduleMainScreen activeTab={activeTab} onTabPress={handleTabPress} />
         );
       case 'profile':
         return (
@@ -150,7 +156,13 @@ function App(): React.JSX.Element {
     }
   };
 
-  return <SafeAreaProvider>{renderScreen()}</SafeAreaProvider>;
+  return (
+    <SafeAreaProvider>
+      <ScheduleProvider>
+        {renderScreen()}
+      </ScheduleProvider>
+    </SafeAreaProvider>
+  );
 }
 
 const styles = StyleSheet.create({

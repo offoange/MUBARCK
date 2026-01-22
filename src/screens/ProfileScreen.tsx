@@ -57,8 +57,8 @@ export default function ProfileScreen({
       id: '1',
       icon: 'menu-book',
       iconColor: COLORS.primary,
-      title: 'Daily Study Target',
-      subtitle: 'Hours per day',
+      title: 'Objectif d\'étude quotidien',
+      subtitle: 'Heures par jour',
       progress: 50,
       displayValue: '4h',
     },
@@ -66,8 +66,8 @@ export default function ProfileScreen({
       id: '2',
       icon: 'bedtime',
       iconColor: COLORS.sky,
-      title: 'Sleep Goal',
-      subtitle: 'Target duration',
+      title: 'Objectif de sommeil',
+      subtitle: 'Durée cible',
       progress: 100,
       displayValue: '8h 00m',
     },
@@ -126,9 +126,9 @@ export default function ProfileScreen({
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>Profil</Text>
         <TouchableOpacity>
-          <Text style={styles.saveButton}>Save</Text>
+          <Text style={styles.saveButton}>Enregistrer</Text>
         </TouchableOpacity>
       </View>
 
@@ -158,7 +158,7 @@ export default function ProfileScreen({
 
         {/* Edit Personal Details Button */}
         <TouchableOpacity style={styles.editButton}>
-          <Text style={styles.editButtonText}>Edit Personal Details</Text>
+          <Text style={styles.editButtonText}>Modifier les informations personnelles</Text>
         </TouchableOpacity>
 
         {/* Stats Cards */}
@@ -167,19 +167,19 @@ export default function ProfileScreen({
             icon="local-fire-department"
             iconColor={COLORS.orange}
             value={userProfile.dayStreak?.toString() || '0'}
-            label="Day Streak"
+            label="Jours consécutifs"
           />
           <ProfileStatCard
             icon="favorite"
             iconColor={COLORS.emerald}
             value={`${userProfile.wellnessScore || 0}%`}
-            label="Wellness Score"
+            label="Score bien-être"
           />
         </View>
 
         {/* My Goals Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>My Goals</Text>
+          <Text style={styles.sectionTitle}>Mes objectifs</Text>
           <View style={styles.goalsContainer}>
             {goals.map(goal => (
               <GoalSlider
@@ -198,28 +198,11 @@ export default function ProfileScreen({
 
         {/* Notification Settings */}
         <View style={styles.section}>
-          <View style={styles.notificationTabs}>
-            <TouchableOpacity style={styles.notifTab}>
-              <MaterialIcons name="home" size={20} color={COLORS.textSecondary} />
-              <Text style={styles.notifTabText}>Home</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.notifTab}>
-              <MaterialIcons name="calendar-today" size={20} color={COLORS.textSecondary} />
-              <Text style={styles.notifTabText}>Calendar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.notifTab}>
-              <MaterialIcons name="spa" size={20} color={COLORS.textSecondary} />
-              <Text style={styles.notifTabText}>Wellness</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.notifTab, styles.notifTabActive]}>
-              <MaterialIcons name="person" size={20} color={COLORS.primary} />
-              <Text style={[styles.notifTabText, styles.notifTabTextActive]}>Profile</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionTitle}>Notifications</Text>
           <SettingsItem
             icon="wb-sunny"
             iconColor={COLORS.orange}
-            title="Morning Motivation"
+            title="Motivation matinale"
             hasSwitch
             switchValue={morningMotivation}
             onSwitchChange={async (value) => {
@@ -239,7 +222,7 @@ export default function ProfileScreen({
           <SettingsItem
             icon="water-drop"
             iconColor={COLORS.sky}
-            title="Hydration Nudges"
+            title="Rappels d'hydratation"
             hasSwitch
             switchValue={hydrationNudges}
             onSwitchChange={async (value) => {
@@ -259,7 +242,7 @@ export default function ProfileScreen({
           <SettingsItem
             icon="notifications-active"
             iconColor={COLORS.primary}
-            title="Focus Mode Alerts"
+            title="Alertes mode concentration"
             hasSwitch
             switchValue={focusModeAlerts}
             onSwitchChange={async (value) => {
@@ -280,24 +263,24 @@ export default function ProfileScreen({
 
         {/* App Settings Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App Settings</Text>
+          <Text style={styles.sectionTitle}>Paramètres de l'application</Text>
           <SettingsItem
             icon="lock"
             iconColor={COLORS.primary}
-            title="Account Security"
+            title="Sécurité du compte"
             showArrow
           />
           <SettingsItem
             icon="palette"
             iconColor={COLORS.pink}
-            title="Theme & Appearance"
-            value="Dark"
+            title="Thème et apparence"
+            value="Sombre"
             showArrow
           />
           <SettingsItem
             icon="help"
             iconColor={COLORS.emerald}
-            title="Help & Support"
+            title="Aide et support"
             showArrow
           />
         </View>
@@ -320,7 +303,7 @@ export default function ProfileScreen({
             );
           }}
         >
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>Déconnexion</Text>
         </TouchableOpacity>
 
         {/* Version */}
@@ -442,31 +425,6 @@ const styles = StyleSheet.create({
   },
   goalsContainer: {
     gap: 12,
-  },
-  notificationTabs: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 8,
-  },
-  notifTab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    gap: 4,
-  },
-  notifTabActive: {
-    backgroundColor: 'rgba(108, 43, 238, 0.2)',
-    borderRadius: 10,
-  },
-  notifTabText: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  notifTabTextActive: {
-    color: COLORS.primary,
   },
   logoutButton: {
     alignItems: 'center',
