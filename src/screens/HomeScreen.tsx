@@ -17,6 +17,7 @@ import QuickActionButton from '../components/QuickActionButton';
 import ScheduleItem from '../components/ScheduleItem';
 import BottomNavigation from '../components/BottomNavigation';
 import DailyGoalModal from '../components/DailyGoalModal';
+import WellnessEditModal from '../components/WellnessEditModal';
 import LocalStorageService, {WellnessData, UserProfile, DailyGoal} from '../services/LocalStorageService';
 import {useSchedule} from '../context/ScheduleContext';
 
@@ -103,6 +104,8 @@ export default function HomeScreen({
   });
   const [dailyGoal, setDailyGoal] = useState<DailyGoal | null>(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [showWellnessModal, setShowWellnessModal] = useState(false);
+  const [wellnessEditType, setWellnessEditType] = useState<'sleep' | 'steps' | 'water'>('sleep');
 
   // Obtenir la date du jour au format YYYY-MM-DD
   const today = useMemo(() => {
@@ -269,6 +272,10 @@ export default function HomeScreen({
               value={`${wellnessData.water.current}L`}
               progress={Math.round((wellnessData.water.current / wellnessData.water.target) * 100)}
               color={COLORS.sky}
+              onPress={() => {
+                setWellnessEditType('water');
+                setShowWellnessModal(true);
+              }}
             />
             <WellnessCard
               icon="bedtime"
@@ -276,6 +283,10 @@ export default function HomeScreen({
               value={`${wellnessData.sleep.hours}h ${wellnessData.sleep.minutes}m`}
               progress={Math.round(((wellnessData.sleep.hours * 60 + wellnessData.sleep.minutes) / (wellnessData.sleep.target * 60)) * 100)}
               color={COLORS.primary}
+              onPress={() => {
+                setWellnessEditType('sleep');
+                setShowWellnessModal(true);
+              }}
             />
             <WellnessCard
               icon="directions-run"
@@ -283,21 +294,9 @@ export default function HomeScreen({
               value={wellnessData.steps.current.toLocaleString()}
               progress={Math.round((wellnessData.steps.current / wellnessData.steps.target) * 100)}
               color={COLORS.emerald}
-              onPress={async () => {
-                try {
-                  // Simuler une mise à jour des pas (ajout de 500 pas)
-                  const updatedWellnessData = {
-                    ...wellnessData,
-                    steps: {
-                      ...wellnessData.steps,
-                      current: wellnessData.steps.current + 500,
-                    },
-                  };
-                  setWellnessData(updatedWellnessData);
-                  await LocalStorageService.saveWellnessData(updatedWellnessData);
-                } catch (error) {
-                  console.error('Erreur lors de la mise à jour des pas:', error);
-                }
+              onPress={() => {
+                setWellnessEditType('steps');
+                setShowWellnessModal(true);
               }}
             />
           </View>
@@ -425,6 +424,37 @@ export default function HomeScreen({
           } catch (error) {
             console.error('Erreur lors de la suppression:', error);
             Alert.alert('Erreur', 'Impossible de supprimer l\'objectif.');
+          }
+        }}
+      />
+
+      {/* Wellness Edit Modal */}
+      <WellnessEditModal
+        visible={showWellnessModal}
+        onClose={() => setShowWellnessModal(false)}
+        type={wellnessEditType}
+        currentValue={
+          wellnessEditType === 'sleep'
+            ? wellnessData.sleep
+            : wellnessEditType === 'steps'
+            ? wellnessData.steps
+            : wellnessData.water
+        }
+        onSave={async (value) => {
+          try {
+            let updatedWellnessData = {...wellnessData};
+            if (wellnessEditType === 'sleep') {
+              updatedWellnessData.sleep = value;
+            } else if (wellnessEditType === 'steps') {
+              updatedWellnessData.steps = value;
+            } else if (wellnessEditType === 'water') {
+              updatedWellnessData.water = value;
+            }
+            setWellnessData(updatedWellnessData);
+            await LocalStorageService.saveWellnessData(updatedWellnessData);
+          } catch (error) {
+            console.error('Erreur lors de la sauvegarde:', error);
+            Alert.alert('Erreur', 'Impossible de sauvegarder les données.');
           }
         }}
       />
