@@ -15,6 +15,8 @@ import FilterTab from '../components/FilterTab';
 import ProgressCard from '../components/ProgressCard';
 import BottomNavigation from '../components/BottomNavigation';
 import LocalStorageService from '../services/LocalStorageService';
+import NotificationService from '../services/NotificationServiceSimple';
+import AddReminderModal, {NewReminder} from '../components/AddReminderModal';
 
 const COLORS = {
   primary: '#6c2bee',
@@ -37,6 +39,12 @@ interface Reminder {
   subtitle: string;
   isEnabled: boolean;
   category: string;
+  // Champs pour les notifications
+  hour?: number;
+  minute?: number;
+  repeatType?: 'daily' | 'hourly' | 'weekly' | 'none';
+  repeatInterval?: number;
+  notificationId?: string;
 }
 
 const FILTERS = ['Tout', 'Études', 'Santé', 'Bien-être'];
@@ -48,9 +56,11 @@ const INITIAL_REMINDERS: Reminder[] = [
     iconColor: '#fff',
     iconBgColor: COLORS.sky,
     title: 'Boire un verre d\'eau',
-    subtitle: 'Toutes les 2h • Prochain à 10:00',
+    subtitle: 'Toutes les 2h',
     isEnabled: true,
     category: 'Santé',
+    repeatType: 'hourly',
+    repeatInterval: 2,
   },
   {
     id: '2',
@@ -61,6 +71,9 @@ const INITIAL_REMINDERS: Reminder[] = [
     subtitle: '10:30 • 25 min focus',
     isEnabled: false,
     category: 'Études',
+    hour: 10,
+    minute: 30,
+    repeatType: 'daily',
   },
   {
     id: '3',
@@ -71,6 +84,9 @@ const INITIAL_REMINDERS: Reminder[] = [
     subtitle: '20:00 • 5 min',
     isEnabled: false,
     category: 'Bien-être',
+    hour: 20,
+    minute: 0,
+    repeatType: 'daily',
   },
   {
     id: '4',
@@ -81,6 +97,9 @@ const INITIAL_REMINDERS: Reminder[] = [
     subtitle: '23:00 • Sommeil',
     isEnabled: false,
     category: 'Bien-être',
+    hour: 23,
+    minute: 0,
+    repeatType: 'daily',
   },
 ];
 
@@ -95,6 +114,7 @@ export default function RappelsScreen({
 }: RappelsScreenProps) {
   const [activeFilter, setActiveFilter] = useState('Tout');
   const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Charger les rappels depuis le stockage au démarrage
   useEffect(() => {
@@ -118,8 +138,48 @@ export default function RappelsScreen({
 
   const toggleReminder = async (id: string, value: boolean) => {
     try {
-      const updatedReminders = reminders.map(reminder =>
-        reminder.id === id ? {...reminder, isEnabled: value} : reminder,
+      const reminder = reminders.find(r => r.id === id);
+      if (!reminder) return;
+
+      let notificationId = reminder.notificationId;
+
+      if (value) {
+        // Activer la notification
+        const notifData = {
+          id: reminder.id,
+          title: reminder.title,
+          body: `C'est l'heure: ${reminder.title}`,
+          hour: reminder.hour || 0,
+          minute: reminder.minute || 0,
+          repeatType: reminder.repeatType,
+          repeatInterval: reminder.repeatInterval,
+          isEnabled: true,
+        };
+
+        if (reminder.repeatType === 'hourly') {
+          notificationId = await NotificationService.scheduleHourlyRepeat(notifData) || undefined;
+          Alert.alert(
+            'Rappel activé',
+            `Vous recevrez une notification toutes les ${reminder.repeatInterval || 2} heures.`
+          );
+        } else if (reminder.repeatType === 'daily' && reminder.hour !== undefined) {
+          notificationId = await NotificationService.scheduleDaily(notifData) || undefined;
+          const timeStr = `${String(reminder.hour).padStart(2, '0')}:${String(reminder.minute || 0).padStart(2, '0')}`;
+          Alert.alert(
+            'Rappel activé',
+            `Vous recevrez une notification tous les jours à ${timeStr}.`
+          );
+        }
+      } else {
+        // Désactiver la notification
+        if (reminder.notificationId) {
+          await NotificationService.cancelNotification(reminder.notificationId);
+          notificationId = undefined;
+        }
+      }
+
+      const updatedReminders = reminders.map(r =>
+        r.id === id ? {...r, isEnabled: value, notificationId} : r,
       );
 
       setReminders(updatedReminders);
@@ -149,6 +209,59 @@ export default function RappelsScreen({
   const completedCount = reminders.filter(r => r.isEnabled).length;
   const progress = Math.round((completedCount / reminders.length) * 100);
 
+  // Fonction pour ajouter un nouveau rappel
+  const handleAddReminder = async (newReminderData: NewReminder) => {
+    try {
+      // Générer un ID unique
+      const newId = `reminder_${Date.now()}`;
+
+      // Déterminer la couleur de fond de l'icône selon la catégorie
+      const categoryColors: {[key: string]: string} = {
+        'Santé': COLORS.sky,
+        'Études': COLORS.orange,
+        'Bien-être': COLORS.purple,
+      };
+
+      // Créer le sous-titre
+      let subtitle = '';
+      if (newReminderData.repeatType === 'hourly') {
+        subtitle = `Toutes les ${newReminderData.repeatInterval || 2}h`;
+      } else if (newReminderData.repeatType === 'daily') {
+        const hourStr = String(newReminderData.hour).padStart(2, '0');
+        const minStr = String(newReminderData.minute).padStart(2, '0');
+        subtitle = `${hourStr}:${minStr} • Tous les jours`;
+      } else {
+        const hourStr = String(newReminderData.hour).padStart(2, '0');
+        const minStr = String(newReminderData.minute).padStart(2, '0');
+        subtitle = `${hourStr}:${minStr}`;
+      }
+
+      const newReminder: Reminder = {
+        id: newId,
+        icon: newReminderData.icon,
+        iconColor: '#fff',
+        iconBgColor: categoryColors[newReminderData.category] || COLORS.primary,
+        title: newReminderData.title,
+        subtitle,
+        isEnabled: false,
+        category: newReminderData.category,
+        hour: newReminderData.hour,
+        minute: newReminderData.minute,
+        repeatType: newReminderData.repeatType,
+        repeatInterval: newReminderData.repeatInterval,
+      };
+
+      const updatedReminders = [...reminders, newReminder];
+      setReminders(updatedReminders);
+      await LocalStorageService.saveReminders(updatedReminders);
+
+      Alert.alert('Succès', 'Rappel ajouté avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du rappel:', error);
+      Alert.alert('Erreur', 'Impossible d\'ajouter le rappel.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -159,7 +272,7 @@ export default function RappelsScreen({
           <Text style={styles.headerTitle}>Rappels</Text>
           <Text style={styles.headerSubtitle}>Mercredi 24 Octobre</Text>
         </View>
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity style={styles.addButton} onPress={() => setShowAddModal(true)}>
           <MaterialIcons name="add" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -228,7 +341,14 @@ export default function RappelsScreen({
       <BottomNavigation
         activeTab={activeTab}
         onTabPress={onTabPress}
-        onAddPress={() => console.log('Add pressed')}
+        onAddPress={() => setShowAddModal(true)}
+      />
+
+      {/* Modal pour ajouter un rappel */}
+      <AddReminderModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSave={handleAddReminder}
       />
     </SafeAreaView>
   );
