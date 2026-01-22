@@ -1,8 +1,23 @@
 /**
  * Service de stockage local pour l'application MubarakApp
- * Cette implémentation utilise des variables en mémoire pour simuler la persistance des données
- * dans un environnement de développement sans dépendance externe.
+ * Cette implémentation utilise AsyncStorage pour la persistance des données.
  */
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Clés de stockage
+const STORAGE_KEYS = {
+  USER_PROFILE: '@mubarak_user_profile',
+  REMINDERS: '@mubarak_reminders',
+  SCHEDULE: '@mubarak_schedule',
+  GOALS: '@mubarak_goals',
+  SETTINGS: '@mubarak_settings',
+  WELLNESS_DATA: '@mubarak_wellness_data',
+  IS_LOGGED_IN: '@mubarak_is_logged_in',
+  HAS_COMPLETED_ONBOARDING: '@mubarak_has_completed_onboarding',
+  NOTES: '@mubarak_notes',
+  DAILY_GOAL: '@mubarak_daily_goal',
+};
 
 // Types
 export interface UserProfile {
@@ -23,6 +38,12 @@ export interface Reminder {
   subtitle: string;
   isEnabled: boolean;
   category: string;
+  // Champs pour les notifications
+  hour?: number;
+  minute?: number;
+  repeatType?: 'daily' | 'hourly' | 'weekly' | 'none';
+  repeatInterval?: number; // Pour les répétitions horaires (ex: 2 pour "toutes les 2h")
+  notificationId?: string; // ID de la notification programmée
 }
 
 export interface ScheduleItem {
@@ -77,6 +98,16 @@ export interface Note {
   color: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface DailyGoal {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  isCompleted: boolean;
+  createdAt: string;
+  completedAt?: string;
 }
 
 // Données par défaut
@@ -209,139 +240,293 @@ const DEFAULT_WELLNESS_DATA: WellnessData = {
   },
 };
 
-// Variables de stockage en mémoire
-let userProfile: UserProfile | null = null;
-let reminders: Reminder[] = [...DEFAULT_REMINDERS];
-let schedule: ScheduleItem[] = [...DEFAULT_SCHEDULE];
-let goals: Goal[] = [...DEFAULT_GOALS];
-let settings: Settings = {...DEFAULT_SETTINGS};
-let wellnessData: WellnessData = {...DEFAULT_WELLNESS_DATA};
-let isLoggedIn: boolean = false;
-let hasCompletedOnboarding: boolean = false;
-let notes: Note[] = [];
-
-// Service de stockage local
+// Service de stockage local avec AsyncStorage
 class LocalStorageService {
   // Profil utilisateur
   async saveUserProfile(profile: UserProfile): Promise<void> {
-    userProfile = {...profile};
-    console.log('Profil utilisateur sauvegardé:', userProfile);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
+      console.log('Profil utilisateur sauvegardé:', profile);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du profil:', error);
+    }
   }
 
   async getUserProfile(): Promise<UserProfile | null> {
-    return userProfile ? {...userProfile} : null;
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error('Erreur lors de la récupération du profil:', error);
+      return null;
+    }
   }
 
   // Rappels
   async saveReminders(items: Reminder[]): Promise<void> {
-    reminders = [...items];
-    console.log('Rappels sauvegardés:', reminders);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.REMINDERS, JSON.stringify(items));
+      console.log('Rappels sauvegardés:', items);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des rappels:', error);
+    }
   }
 
   async getReminders(): Promise<Reminder[]> {
-    return [...reminders];
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.REMINDERS);
+      return data ? JSON.parse(data) : DEFAULT_REMINDERS;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des rappels:', error);
+      return DEFAULT_REMINDERS;
+    }
   }
 
   // Planning
   async saveSchedule(items: ScheduleItem[]): Promise<void> {
-    schedule = [...items];
-    console.log('Planning sauvegardé:', schedule);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(items));
+      console.log('Planning sauvegardé:', items);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du planning:', error);
+    }
   }
 
   async getSchedule(): Promise<ScheduleItem[]> {
-    return [...schedule];
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.SCHEDULE);
+      return data ? JSON.parse(data) : DEFAULT_SCHEDULE;
+    } catch (error) {
+      console.error('Erreur lors de la récupération du planning:', error);
+      return DEFAULT_SCHEDULE;
+    }
   }
 
   // Objectifs
   async saveGoals(items: Goal[]): Promise<void> {
-    goals = [...items];
-    console.log('Objectifs sauvegardés:', goals);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(items));
+      console.log('Objectifs sauvegardés:', items);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des objectifs:', error);
+    }
   }
 
   async getGoals(): Promise<Goal[]> {
-    return [...goals];
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.GOALS);
+      return data ? JSON.parse(data) : DEFAULT_GOALS;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des objectifs:', error);
+      return DEFAULT_GOALS;
+    }
   }
 
   // Paramètres
   async saveSettings(newSettings: Settings): Promise<void> {
-    settings = {...newSettings};
-    console.log('Paramètres sauvegardés:', settings);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
+      console.log('Paramètres sauvegardés:', newSettings);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des paramètres:', error);
+    }
   }
 
   async getSettings(): Promise<Settings | null> {
-    return {...settings};
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
+      return data ? JSON.parse(data) : DEFAULT_SETTINGS;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des paramètres:', error);
+      return DEFAULT_SETTINGS;
+    }
   }
 
   // Données bien-être
   async saveWellnessData(data: WellnessData): Promise<void> {
-    wellnessData = {...data};
-    console.log('Données bien-être sauvegardées:', wellnessData);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.WELLNESS_DATA, JSON.stringify(data));
+      console.log('Données bien-être sauvegardées:', data);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des données bien-être:', error);
+    }
   }
 
   async getWellnessData(): Promise<WellnessData | null> {
-    return {...wellnessData};
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.WELLNESS_DATA);
+      return data ? JSON.parse(data) : DEFAULT_WELLNESS_DATA;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des données bien-être:', error);
+      return DEFAULT_WELLNESS_DATA;
+    }
   }
 
   // Effacer toutes les données
   async clearAllData(): Promise<void> {
-    userProfile = null;
-    reminders = [...DEFAULT_REMINDERS];
-    schedule = [...DEFAULT_SCHEDULE];
-    goals = [...DEFAULT_GOALS];
-    settings = {...DEFAULT_SETTINGS};
-    wellnessData = {...DEFAULT_WELLNESS_DATA};
-    isLoggedIn = false;
-    hasCompletedOnboarding = false;
-    console.log('Toutes les données ont été effacées');
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.USER_PROFILE,
+        STORAGE_KEYS.REMINDERS,
+        STORAGE_KEYS.SCHEDULE,
+        STORAGE_KEYS.GOALS,
+        STORAGE_KEYS.SETTINGS,
+        STORAGE_KEYS.WELLNESS_DATA,
+        STORAGE_KEYS.IS_LOGGED_IN,
+        STORAGE_KEYS.HAS_COMPLETED_ONBOARDING,
+        STORAGE_KEYS.NOTES,
+      ]);
+      console.log('Toutes les données ont été effacées');
+    } catch (error) {
+      console.error('Erreur lors de la suppression des données:', error);
+    }
   }
 
   // Gestion de la session utilisateur
   async setLoggedIn(value: boolean): Promise<void> {
-    isLoggedIn = value;
-    console.log('État de connexion:', isLoggedIn);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, JSON.stringify(value));
+      console.log('État de connexion:', value);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de l\'état de connexion:', error);
+    }
   }
 
   async getIsLoggedIn(): Promise<boolean> {
-    return isLoggedIn;
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.IS_LOGGED_IN);
+      return data ? JSON.parse(data) : false;
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'état de connexion:', error);
+      return false;
+    }
   }
 
   async setOnboardingCompleted(value: boolean): Promise<void> {
-    hasCompletedOnboarding = value;
-    console.log('Onboarding complété:', hasCompletedOnboarding);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.HAS_COMPLETED_ONBOARDING, JSON.stringify(value));
+      console.log('Onboarding complété:', value);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de l\'état onboarding:', error);
+    }
   }
 
   async getHasCompletedOnboarding(): Promise<boolean> {
-    return hasCompletedOnboarding;
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.HAS_COMPLETED_ONBOARDING);
+      return data ? JSON.parse(data) : false;
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'état onboarding:', error);
+      return false;
+    }
   }
 
   // Vérifier si l'utilisateur est authentifié
   async isAuthenticated(): Promise<boolean> {
-    return userProfile !== null && isLoggedIn;
+    try {
+      const isLoggedIn = await this.getIsLoggedIn();
+      const userProfile = await this.getUserProfile();
+      return userProfile !== null && isLoggedIn;
+    } catch (error) {
+      console.error('Erreur lors de la vérification de l\'authentification:', error);
+      return false;
+    }
   }
 
   // Notes de révision
   async saveNotes(items: Note[]): Promise<void> {
-    notes = [...items];
-    console.log('Notes sauvegardées:', notes);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(items));
+      console.log('Notes sauvegardées:', items);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des notes:', error);
+    }
   }
 
   async getNotes(): Promise<Note[]> {
-    return [...notes];
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.NOTES);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Erreur lors de la récupération des notes:', error);
+      return [];
+    }
   }
 
   async addNote(note: Note): Promise<void> {
-    notes = [...notes, note];
-    console.log('Note ajoutée:', note);
+    try {
+      const notes = await this.getNotes();
+      notes.push(note);
+      await this.saveNotes(notes);
+      console.log('Note ajoutée:', note);
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de la note:', error);
+    }
   }
 
   async updateNote(updatedNote: Note): Promise<void> {
-    notes = notes.map(n => n.id === updatedNote.id ? updatedNote : n);
-    console.log('Note mise à jour:', updatedNote);
+    try {
+      const notes = await this.getNotes();
+      const updatedNotes = notes.map(n => n.id === updatedNote.id ? updatedNote : n);
+      await this.saveNotes(updatedNotes);
+      console.log('Note mise à jour:', updatedNote);
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la note:', error);
+    }
   }
 
   async deleteNote(noteId: string): Promise<void> {
-    notes = notes.filter(n => n.id !== noteId);
-    console.log('Note supprimée:', noteId);
+    try {
+      const notes = await this.getNotes();
+      const filteredNotes = notes.filter(n => n.id !== noteId);
+      await this.saveNotes(filteredNotes);
+      console.log('Note supprimée:', noteId);
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la note:', error);
+    }
+  }
+
+  // Objectif du jour
+  async saveDailyGoal(goal: DailyGoal): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.DAILY_GOAL, JSON.stringify(goal));
+      console.log('Objectif du jour sauvegardé:', goal);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de l\'objectif du jour:', error);
+    }
+  }
+
+  async getDailyGoal(): Promise<DailyGoal | null> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.DAILY_GOAL);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'objectif du jour:', error);
+      return null;
+    }
+  }
+
+  async completeDailyGoal(): Promise<void> {
+    try {
+      const goal = await this.getDailyGoal();
+      if (goal) {
+        goal.isCompleted = true;
+        goal.completedAt = new Date().toISOString();
+        await this.saveDailyGoal(goal);
+        console.log('Objectif du jour complété:', goal);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la complétion de l\'objectif du jour:', error);
+    }
+  }
+
+  async deleteDailyGoal(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.DAILY_GOAL);
+      console.log('Objectif du jour supprimé');
+    } catch (error) {
+      console.error('Erreur lors de la suppression de l\'objectif du jour:', error);
+    }
   }
 }
 

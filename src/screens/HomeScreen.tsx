@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,9 @@ import WellnessCard from '../components/WellnessCard';
 import QuickActionButton from '../components/QuickActionButton';
 import ScheduleItem from '../components/ScheduleItem';
 import BottomNavigation from '../components/BottomNavigation';
-import LocalStorageService, {WellnessData, UserProfile} from '../services/LocalStorageService';
+import DailyGoalModal from '../components/DailyGoalModal';
+import LocalStorageService, {WellnessData, UserProfile, DailyGoal} from '../services/LocalStorageService';
+import {useSchedule} from '../context/ScheduleContext';
 
 const COLORS = {
   primary: '#6c2bee',
@@ -27,6 +29,44 @@ const COLORS = {
   rose: '#fb7185',
   textPrimary: '#ffffff',
   textSecondary: '#94a3b8',
+};
+
+// Helper pour obtenir l'icône selon la matière
+const getIconForMatiere = (matiere: string): string => {
+  const icons: {[key: string]: string} = {
+    'Mathématiques': 'calculate',
+    'Sciences': 'science',
+    'Physique': 'science',
+    'Chimie': 'science',
+    'Biologie': 'biotech',
+    'Français': 'menu-book',
+    'L&L Française': 'menu-book',
+    'Anglais': 'language',
+    'Espagnol': 'translate',
+    'Histoire': 'history-edu',
+    'Géographie': 'public',
+    'Individus et Sociétés': 'groups',
+    'EPS': 'sports-soccer',
+    'Sport': 'fitness-center',
+    'Art Visuel': 'palette',
+    'Musique': 'music-note',
+    'Informatique': 'computer',
+    'Projet Personnel': 'assignment',
+    'Vie de classe': 'school',
+  };
+  return icons[matiere] || 'menu-book';
+};
+
+// Helper pour obtenir l'icône selon le type d'activité
+const getIconForActivite = (type: string): string => {
+  const icons: {[key: string]: string} = {
+    'etude': 'menu-book',
+    'sport': 'fitness-center',
+    'loisir': 'sports-esports',
+    'rendez_vous': 'event',
+    'autre': 'event-note',
+  };
+  return icons[type] || 'event';
 };
 
 interface HomeScreenProps {
@@ -44,6 +84,7 @@ export default function HomeScreen({
   onOpenBreathingExercise,
   onOpenNotes,
 }: HomeScreenProps) {
+  const {getCoursParDate, getActivitesParDate, estConfigure} = useSchedule();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [wellnessData, setWellnessData] = useState<WellnessData>({
     water: {
@@ -60,6 +101,63 @@ export default function HomeScreen({
       target: 8000,
     },
   });
+  const [dailyGoal, setDailyGoal] = useState<DailyGoal | null>(null);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+
+  // Obtenir la date du jour au format YYYY-MM-DD
+  const today = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  // Récupérer les cours et activités du jour
+  const todayCours = useMemo(() => getCoursParDate(today), [getCoursParDate, today]);
+  const todayActivites = useMemo(() => getActivitesParDate(today), [getActivitesParDate, today]);
+
+  // Combiner et trier les événements du jour par heure
+  const todaySchedule = useMemo(() => {
+    const events: Array<{
+      id: string;
+      time: string;
+      title: string;
+      subtitle: string;
+      icon: string;
+      color: string;
+      type: 'cours' | 'activite';
+      isCompleted?: boolean;
+    }> = [];
+
+    // Ajouter les cours
+    todayCours.forEach(cours => {
+      events.push({
+        id: cours.id,
+        time: cours.heureDebut,
+        title: cours.matiere,
+        subtitle: cours.salle ? `Salle ${cours.salle} • ${cours.heureDebut} - ${cours.heureFin}` : `${cours.heureDebut} - ${cours.heureFin}`,
+        icon: getIconForMatiere(cours.matiere),
+        color: cours.couleur,
+        type: 'cours',
+        isCompleted: cours.statut === 'complete',
+      });
+    });
+
+    // Ajouter les activités personnelles
+    todayActivites.forEach(activite => {
+      events.push({
+        id: activite.id,
+        time: activite.heureDebut,
+        title: activite.titre,
+        subtitle: `${activite.heureDebut} - ${activite.heureFin}`,
+        icon: getIconForActivite(activite.type),
+        color: activite.couleur,
+        type: 'activite',
+        isCompleted: activite.complete,
+      });
+    });
+
+    // Trier par heure
+    return events.sort((a, b) => a.time.localeCompare(b.time));
+  }, [todayCours, todayActivites]);
 
   // Charger les données utilisateur et de bien-être au démarrage
   useEffect(() => {
@@ -77,6 +175,12 @@ export default function HomeScreen({
           setWellnessData(savedWellnessData);
         } else {
           await LocalStorageService.saveWellnessData(wellnessData);
+        }
+
+        // Charger l'objectif du jour
+        const savedDailyGoal = await LocalStorageService.getDailyGoal();
+        if (savedDailyGoal) {
+          setDailyGoal(savedDailyGoal);
         }
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
@@ -119,22 +223,31 @@ export default function HomeScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         {/* Focus of the Day Card */}
-        <TouchableOpacity activeOpacity={0.95}>
+        <TouchableOpacity activeOpacity={0.95} onPress={() => setShowGoalModal(true)}>
           <ImageBackground
             source={{
               uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFL2uUyaeX5T8MvmWCnIUKbFtGLGNmEzGgk6mdw0ywJzbnpeAPBwJk9YZ8sYoFf6jB7maDXIDQS9A1XX1iVYAC8HH-XFHFdI0MQ6E8A5Jz8unBVXy5MQ4FNg98Yyf4P30slzikx2hAWWcdwDnDetKRkNHHHnd9Y3JrLrUezJW-JEJe_a-qzZya-IUohVOu5GqZ0P8r78GMnsEncJ8cJm9rl3Tb2UECFvqfqh-e7CVBj3-KagPFwKqw3llAnRwdmrRpb-fxnPYUT-Q',
             }}
             style={styles.focusCard}
             imageStyle={styles.focusCardImage}>
-            <View style={styles.focusCardOverlay} />
+            <View style={[styles.focusCardOverlay, dailyGoal?.isCompleted && styles.focusCardOverlayCompleted]} />
             <View style={styles.focusCardContent}>
-              <View style={styles.focusBadge}>
-                <Text style={styles.focusBadgeText}>OBJECTIF DU JOUR</Text>
+              <View style={styles.focusHeaderRow}>
+                <View style={styles.focusBadge}>
+                  <Text style={styles.focusBadgeText}>
+                    {dailyGoal?.isCompleted ? '✓ OBJECTIF ATTEINT' : 'OBJECTIF DU JOUR'}
+                  </Text>
+                </View>
+                <View style={styles.editBadge}>
+                  <MaterialIcons name="edit" size={14} color="#fff" />
+                </View>
               </View>
               <View style={styles.focusTextContainer}>
-                <Text style={styles.focusTitle}>Maîtriser le Calcul II</Text>
+                <Text style={styles.focusTitle}>
+                  {dailyGoal?.title || 'Définir un objectif'}
+                </Text>
                 <Text style={styles.focusDescription}>
-                  Terminer les exercices de révision du chapitre 4 avant la session de groupe d'étude.
+                  {dailyGoal?.description || 'Appuyez ici pour définir votre objectif du jour et rester motivé !'}
                 </Text>
               </View>
             </View>
@@ -221,32 +334,47 @@ export default function HomeScreen({
 
         {/* Today's Schedule */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Programme du Jour</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Programme du Jour</Text>
+            {estConfigure && (
+              <TouchableOpacity onPress={() => onTabPress && onTabPress('schedule')}>
+                <Text style={styles.sectionLink}>Voir tout</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={styles.scheduleContainer}>
-            <ScheduleItem
-              icon="menu-book"
-              title="Groupe d'étude Biologie"
-              subtitle="Bibliothèque Salle 302 • avec Sarah & Mike"
-              time="14:00"
-              isActive={true}
-              avatars={[
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuDUejXpi-962rBrjpwjFeuL1JGm8XyJt0CQeA2htoIQOWdDaAqn9mwGbnwTzqzpO_8staRvOBSVDjIqzdHXk-JnXL7N60Dd28a2VeYyOl1ig9_RgFdq_BWXnc2UZ0fjUSgIGZ4bdOdWi0EhhLgStY6q5XtjuV0A4_7D7iU0vBJUi01FXLAsmO7duXm3VYhYsJCebbdgAOICobnCw3xYLnTv2pgTujGc5m-S25vz40Ww9LQ4dbYe0Kd-5ToZkIJd8zs_OLEI3Bz0ZXM',
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuCmfoT-fYmtDjXiqmqa4CQahTrc2c9H_RJzBOjFbctV0_TWayhlboldlgpJ-GDD5wGOs5WRExxk7tbTto1wg00ovcwD1QZngz7RDOSRaHFJihAd1SeDIfvkEAgp1e0NKCZOuJYECfQwo3gDj9AxAI5o0g1fVd5fTrUbTaJR-JVTw11F1RiyfBJCGn6gxgzxyeUobkK2GpRVDmc0Rz7G5Z8xpFYBCpNE2WAI4XThQjcnan5FYK599MD0eJt3KQ1qhzx9l2OcMQK_CQA',
-              ]}
-            />
-            <ScheduleItem
-              icon="fitness-center"
-              title="Séance de Sport"
-              subtitle="Routine jambes"
-              time="16:30"
-            />
-            <ScheduleItem
-              icon="spa"
-              title="Méditation du Soir"
-              subtitle="Routine de détente"
-              time="20:00"
-              isLast={true}
-            />
+            {todaySchedule.length > 0 ? (
+              todaySchedule.slice(0, 4).map((event, index) => (
+                <ScheduleItem
+                  key={event.id}
+                  icon={event.icon}
+                  title={event.title}
+                  subtitle={event.subtitle}
+                  time={event.time}
+                  isActive={!event.isCompleted && index === 0}
+                  isLast={index === Math.min(todaySchedule.length - 1, 3)}
+                />
+              ))
+            ) : (
+              <View style={styles.emptySchedule}>
+                <MaterialIcons name="event-available" size={48} color={COLORS.textSecondary} />
+                <Text style={styles.emptyScheduleTitle}>
+                  {estConfigure ? 'Aucun cours aujourd\'hui' : 'Calendrier non configuré'}
+                </Text>
+                <Text style={styles.emptyScheduleSubtitle}>
+                  {estConfigure
+                    ? 'Profitez de votre journée libre !'
+                    : 'Configurez votre emploi du temps dans l\'onglet Calendrier'}
+                </Text>
+                {!estConfigure && (
+                  <TouchableOpacity
+                    style={styles.configureButton}
+                    onPress={() => onTabPress && onTabPress('schedule')}>
+                    <Text style={styles.configureButtonText}>Configurer</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
         </View>
 
@@ -259,6 +387,46 @@ export default function HomeScreen({
         activeTab={activeTab}
         onTabPress={onTabPress}
         onAddPress={() => console.log('Add pressed')}
+      />
+
+      {/* Daily Goal Modal */}
+      <DailyGoalModal
+        visible={showGoalModal}
+        onClose={() => setShowGoalModal(false)}
+        currentGoal={dailyGoal}
+        onSave={async (goal) => {
+          try {
+            await LocalStorageService.saveDailyGoal(goal);
+            setDailyGoal(goal);
+            setShowGoalModal(false);
+            Alert.alert('Succès', 'Votre objectif a été enregistré !');
+          } catch (error) {
+            console.error('Erreur lors de la sauvegarde:', error);
+            Alert.alert('Erreur', 'Impossible de sauvegarder l\'objectif.');
+          }
+        }}
+        onComplete={async () => {
+          try {
+            await LocalStorageService.completeDailyGoal();
+            const updatedGoal = await LocalStorageService.getDailyGoal();
+            setDailyGoal(updatedGoal);
+            setShowGoalModal(false);
+            Alert.alert('Félicitations ! 🎉', 'Vous avez atteint votre objectif du jour !');
+          } catch (error) {
+            console.error('Erreur lors de la complétion:', error);
+            Alert.alert('Erreur', 'Impossible de marquer l\'objectif comme atteint.');
+          }
+        }}
+        onDelete={async () => {
+          try {
+            await LocalStorageService.deleteDailyGoal();
+            setDailyGoal(null);
+            setShowGoalModal(false);
+          } catch (error) {
+            console.error('Erreur lors de la suppression:', error);
+            Alert.alert('Erreur', 'Impossible de supprimer l\'objectif.');
+          }
+        }}
       />
     </SafeAreaView>
   );
@@ -342,10 +510,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     borderRadius: 16,
   },
+  focusCardOverlayCompleted: {
+    backgroundColor: 'rgba(34, 197, 94, 0.3)',
+  },
   focusCardContent: {
     flex: 1,
     padding: 20,
     justifyContent: 'space-between',
+  },
+  focusHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   focusBadge: {
     alignSelf: 'flex-start',
@@ -355,6 +531,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+  },
+  editBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   focusBadgeText: {
     fontSize: 10,
@@ -404,6 +588,37 @@ const styles = StyleSheet.create({
   },
   scheduleContainer: {
     gap: 0,
+  },
+  emptySchedule: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyScheduleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  emptyScheduleSubtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  configureButton: {
+    marginTop: 8,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  configureButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   bottomSpacer: {
     height: 100,
