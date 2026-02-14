@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Clés de stockage
 const STORAGE_KEYS = {
   USER_PROFILE: '@mubarak_user_profile',
+  USER_PASSWORD: '@mubarak_user_password',
   REMINDERS: '@mubarak_reminders',
   SCHEDULE: '@mubarak_schedule',
   GOALS: '@mubarak_goals',
@@ -17,6 +18,8 @@ const STORAGE_KEYS = {
   HAS_COMPLETED_ONBOARDING: '@mubarak_has_completed_onboarding',
   NOTES: '@mubarak_notes',
   DAILY_GOAL: '@mubarak_daily_goal',
+  LAST_LOGIN_DATE: '@mubarak_last_login_date',
+  DAY_STREAK: '@mubarak_day_streak',
 };
 
 // Types
@@ -110,15 +113,7 @@ export interface DailyGoal {
   completedAt?: string;
 }
 
-// Données par défaut
-const DEFAULT_USER_PROFILE: UserProfile = {
-  name: 'Alex Rivera',
-  email: 'alex.rivera@university.edu',
-  avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDv1T6_MgXb2h74tuQcPVMvbw8S4R4pc8Z3-CfWR5oci3d8PSI1QKZ33IPQzRJ1qQjUgGPSmaTTP-oIP1iKm_WGUOu38P3H75umAWRzAXa3NkZkqKRMeonVId2OvWSlMgBSBCreAds8CmeG5LfaCyJLo10LTJrW0BtJgfkrAHBCMW8S24zfS-wum183e4jgZYcZF4dhfi7F9aeHyWwOEK2A1fBqaYMxMs7GPJsNxQ4hCBVzTdFQWrKN0bNe9Tth2LOvB4uhxJp5zAQ',
-  level: 'LEVEL 5 SCHEDULER',
-  dayStreak: 12,
-  wellnessScore: 85,
-};
+
 
 const DEFAULT_REMINDERS: Reminder[] = [
   {
@@ -362,11 +357,22 @@ class LocalStorageService {
     }
   }
 
-  // Effacer toutes les données
+  // Déconnexion : garde le profil et le mot de passe pour pouvoir se reconnecter
+  async logout(): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.IS_LOGGED_IN, JSON.stringify(false));
+      console.log('Utilisateur déconnecté');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    }
+  }
+
+  // Effacer toutes les données (suppression de compte)
   async clearAllData(): Promise<void> {
     try {
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.USER_PROFILE,
+        STORAGE_KEYS.USER_PASSWORD,
         STORAGE_KEYS.REMINDERS,
         STORAGE_KEYS.SCHEDULE,
         STORAGE_KEYS.GOALS,
@@ -375,6 +381,9 @@ class LocalStorageService {
         STORAGE_KEYS.IS_LOGGED_IN,
         STORAGE_KEYS.HAS_COMPLETED_ONBOARDING,
         STORAGE_KEYS.NOTES,
+        STORAGE_KEYS.DAILY_GOAL,
+        STORAGE_KEYS.LAST_LOGIN_DATE,
+        STORAGE_KEYS.DAY_STREAK,
       ]);
       console.log('Toutes les données ont été effacées');
     } catch (error) {
@@ -440,6 +449,7 @@ class LocalStorageService {
       console.log('Notes sauvegardées:', items);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des notes:', error);
+      throw error;
     }
   }
 
@@ -461,6 +471,7 @@ class LocalStorageService {
       console.log('Note ajoutée:', note);
     } catch (error) {
       console.error('Erreur lors de l\'ajout de la note:', error);
+      throw error;
     }
   }
 
@@ -472,6 +483,7 @@ class LocalStorageService {
       console.log('Note mise à jour:', updatedNote);
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la note:', error);
+      throw error;
     }
   }
 
@@ -483,6 +495,7 @@ class LocalStorageService {
       console.log('Note supprimée:', noteId);
     } catch (error) {
       console.error('Erreur lors de la suppression de la note:', error);
+      throw error;
     }
   }
 
@@ -526,6 +539,168 @@ class LocalStorageService {
       console.log('Objectif du jour supprimé');
     } catch (error) {
       console.error('Erreur lors de la suppression de l\'objectif du jour:', error);
+    }
+  }
+
+  // Gestion du mot de passe utilisateur
+  async saveUserPassword(password: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_PASSWORD, password);
+      console.log('Mot de passe sauvegardé');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du mot de passe:', error);
+      throw error;
+    }
+  }
+
+  async verifyUserPassword(password: string): Promise<boolean> {
+    try {
+      const savedPassword = await AsyncStorage.getItem(STORAGE_KEYS.USER_PASSWORD);
+      return savedPassword === password;
+    } catch (error) {
+      console.error('Erreur lors de la vérification du mot de passe:', error);
+      return false;
+    }
+  }
+
+  async hasUserAccount(): Promise<boolean> {
+    try {
+      const profile = await this.getUserProfile();
+      const password = await AsyncStorage.getItem(STORAGE_KEYS.USER_PASSWORD);
+      return profile !== null && password !== null;
+    } catch (error) {
+      console.error('Erreur lors de la vérification du compte:', error);
+      return false;
+    }
+  }
+
+  // Gestion des jours consécutifs de connexion
+  async updateDayStreak(): Promise<number> {
+    try {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      const lastLoginDate = await AsyncStorage.getItem(STORAGE_KEYS.LAST_LOGIN_DATE);
+      const currentStreakStr = await AsyncStorage.getItem(STORAGE_KEYS.DAY_STREAK);
+      let currentStreak = currentStreakStr ? parseInt(currentStreakStr, 10) : 0;
+
+      if (lastLoginDate === todayStr) {
+        // Déjà connecté aujourd'hui, ne pas incrémenter
+        console.log('Déjà connecté aujourd\'hui, streak:', currentStreak);
+        return currentStreak;
+      }
+
+      if (lastLoginDate) {
+        const lastDate = new Date(lastLoginDate);
+        const diffTime = today.getTime() - lastDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 1) {
+          // Connexion le jour suivant, incrémenter le streak
+          currentStreak += 1;
+          console.log('Jour consécutif! Nouveau streak:', currentStreak);
+        } else if (diffDays > 1) {
+          // Plus d'un jour sans connexion, réinitialiser le streak
+          currentStreak = 1;
+          console.log('Streak réinitialisé à 1 (absence de', diffDays, 'jours)');
+        }
+      } else {
+        // Première connexion
+        currentStreak = 1;
+        console.log('Première connexion, streak initialisé à 1');
+      }
+
+      // Sauvegarder la nouvelle date et le streak
+      await AsyncStorage.setItem(STORAGE_KEYS.LAST_LOGIN_DATE, todayStr);
+      await AsyncStorage.setItem(STORAGE_KEYS.DAY_STREAK, currentStreak.toString());
+
+      // Mettre à jour le profil utilisateur avec le nouveau streak
+      const profile = await this.getUserProfile();
+      if (profile) {
+        profile.dayStreak = currentStreak;
+        await this.saveUserProfile(profile);
+      }
+
+      return currentStreak;
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du streak:', error);
+      return 0;
+    }
+  }
+
+  async getDayStreak(): Promise<number> {
+    try {
+      const streakStr = await AsyncStorage.getItem(STORAGE_KEYS.DAY_STREAK);
+      return streakStr ? parseInt(streakStr, 10) : 0;
+    } catch (error) {
+      console.error('Erreur lors de la récupération du streak:', error);
+      return 0;
+    }
+  }
+
+  // Calcul du score bien-être basé sur eau, sommeil et pas
+  async calculateWellnessScore(): Promise<number> {
+    try {
+      const wellness = await this.getWellnessData();
+      if (!wellness) return 0;
+
+      // Score eau : pourcentage de l'objectif atteint (max 100%)
+      const waterScore = Math.min((wellness.water.current / wellness.water.target) * 100, 100);
+
+      // Score sommeil : pourcentage de l'objectif atteint (max 100%)
+      const totalSleepHours = wellness.sleep.hours + (wellness.sleep.minutes / 60);
+      const sleepScore = Math.min((totalSleepHours / wellness.sleep.target) * 100, 100);
+
+      // Score pas : pourcentage de l'objectif atteint (max 100%)
+      const stepsScore = Math.min((wellness.steps.current / wellness.steps.target) * 100, 100);
+
+      // Score global : moyenne pondérée (sommeil 40%, eau 30%, pas 30%)
+      const totalScore = Math.round((sleepScore * 0.4) + (waterScore * 0.3) + (stepsScore * 0.3));
+
+      // Mettre à jour le profil avec le nouveau score
+      const profile = await this.getUserProfile();
+      if (profile) {
+        profile.wellnessScore = totalScore;
+        await this.saveUserProfile(profile);
+      }
+
+      return totalScore;
+    } catch (error) {
+      console.error('Erreur lors du calcul du score bien-être:', error);
+      return 0;
+    }
+  }
+
+  // Système de niveaux basé sur le streak et l'utilisation
+  calculateLevel(dayStreak: number): string {
+    if (dayStreak >= 365) return 'LEVEL 10 LÉGENDE';
+    if (dayStreak >= 180) return 'LEVEL 9 MAÎTRE';
+    if (dayStreak >= 120) return 'LEVEL 8 EXPERT';
+    if (dayStreak >= 90) return 'LEVEL 7 AVANCÉ';
+    if (dayStreak >= 60) return 'LEVEL 6 CONFIRMÉ';
+    if (dayStreak >= 30) return 'LEVEL 5 RÉGULIER';
+    if (dayStreak >= 14) return 'LEVEL 4 MOTIVÉ';
+    if (dayStreak >= 7) return 'LEVEL 3 ENGAGÉ';
+    if (dayStreak >= 3) return 'LEVEL 2 ACTIF';
+    return 'LEVEL 1 DÉBUTANT';
+  }
+
+  // Mettre à jour le niveau dans le profil
+  async updateLevel(): Promise<string> {
+    try {
+      const dayStreak = await this.getDayStreak();
+      const level = this.calculateLevel(dayStreak);
+
+      const profile = await this.getUserProfile();
+      if (profile) {
+        profile.level = level;
+        await this.saveUserProfile(profile);
+      }
+
+      return level;
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du niveau:', error);
+      return 'LEVEL 1 DÉBUTANT';
     }
   }
 }

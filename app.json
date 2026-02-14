@@ -15,17 +15,25 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mubarakapp"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.mubarakapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bd7d21cb-e181-47b9-b971-ee3bd87cbdda"
+      }
+    },
+    "owner": "offo"
   },
   "name": "MubarakApp",
   "displayName": "MubarakApp"

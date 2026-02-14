@@ -137,9 +137,10 @@ export default function NotesScreen({onClose}: NotesScreenProps) {
 
       await loadNotes();
       setIsModalVisible(false);
+      Alert.alert('Succès', isEditing ? 'Note mise à jour avec succès !' : 'Note enregistrée avec succès !');
     } catch (error) {
       console.error('Erreur lors de la sauvegarde de la note:', error);
-      Alert.alert('Erreur', 'Impossible de sauvegarder la note.');
+      Alert.alert('Erreur', 'Impossible de sauvegarder la note. Veuillez réessayer.');
     }
   };
 

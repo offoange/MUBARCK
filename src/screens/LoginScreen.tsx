@@ -64,20 +64,42 @@ export default function LoginScreen({onLoginSuccess, onSignUp}: LoginScreenProps
       // Vérifier si un profil existe
       const existingProfile = await LocalStorageService.getUserProfile();
 
-      if (existingProfile && existingProfile.email === email) {
-        // Connexion réussie
-        Alert.alert(
-          'Connexion réussie!',
-          `Bienvenue ${existingProfile.name}!`,
-          [{text: 'Continuer', onPress: onLoginSuccess}]
-        );
-      } else {
-        // Pour la démo, on permet la connexion si le profil existe
+      if (!existingProfile) {
         Alert.alert(
           'Erreur',
-          'Email ou mot de passe incorrect. Veuillez vérifier vos identifiants ou créer un compte.',
+          'Aucun compte trouvé. Veuillez créer un compte.',
         );
+        return;
       }
+
+      if (existingProfile.email !== email) {
+        Alert.alert(
+          'Erreur',
+          'Email incorrect. Veuillez vérifier votre email.',
+        );
+        return;
+      }
+
+      // Vérifier le mot de passe
+      const isPasswordValid = await LocalStorageService.verifyUserPassword(password);
+
+      if (!isPasswordValid) {
+        Alert.alert(
+          'Erreur',
+          'Mot de passe incorrect. Veuillez réessayer.',
+        );
+        return;
+      }
+
+      // Marquer l'utilisateur comme connecté
+      await LocalStorageService.setLoggedIn(true);
+
+      // Connexion réussie
+      Alert.alert(
+        'Connexion réussie!',
+        `Bienvenue ${existingProfile.name}!`,
+        [{text: 'Continuer', onPress: onLoginSuccess}]
+      );
     } catch (error) {
       console.error('Erreur lors de la connexion:', error);
       Alert.alert('Erreur', 'Une erreur est survenue lors de la connexion.');

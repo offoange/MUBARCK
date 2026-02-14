@@ -15,7 +15,7 @@ import FilterTab from '../components/FilterTab';
 import ProgressCard from '../components/ProgressCard';
 import BottomNavigation from '../components/BottomNavigation';
 import LocalStorageService from '../services/LocalStorageService';
-import NotificationService from '../services/NotificationServiceSimple';
+import NotificationService from '../services/NotificationService';
 import AddReminderModal, {NewReminder} from '../components/AddReminderModal';
 
 const COLORS = {
@@ -108,6 +108,14 @@ interface RappelsScreenProps {
   onTabPress?: (tab: string) => void;
 }
 
+// Fonction pour formater la date réelle du téléphone
+const formatCurrentDate = (): string => {
+  const now = new Date();
+  const jours = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  const mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+  return `${jours[now.getDay()]} ${now.getDate()} ${mois[now.getMonth()]}`;
+};
+
 export default function RappelsScreen({
   activeTab = 'reminders',
   onTabPress,
@@ -115,11 +123,13 @@ export default function RappelsScreen({
   const [activeFilter, setActiveFilter] = useState('Tout');
   const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
   const [showAddModal, setShowAddModal] = useState(false);
+  const currentDate = formatCurrentDate();
 
-  // Charger les rappels depuis le stockage au démarrage
+  // Charger les rappels au démarrage
   useEffect(() => {
     const loadReminders = async () => {
       try {
+        // Charger les rappels sauvegardés
         const savedReminders = await LocalStorageService.getReminders();
         if (savedReminders && savedReminders.length > 0) {
           setReminders(savedReminders);
@@ -135,6 +145,24 @@ export default function RappelsScreen({
 
     loadReminders();
   }, []);
+
+  // Rafraîchir les rappels quand on revient sur cet écran
+  useEffect(() => {
+    const refreshReminders = async () => {
+      if (activeTab === 'reminders') {
+        try {
+          const savedReminders = await LocalStorageService.getReminders();
+          if (savedReminders && savedReminders.length > 0) {
+            setReminders(savedReminders);
+          }
+        } catch (error) {
+          console.error('Erreur lors du rafraîchissement des rappels:', error);
+        }
+      }
+    };
+
+    refreshReminders();
+  }, [activeTab]);
 
   const toggleReminder = async (id: string, value: boolean) => {
     try {
@@ -199,12 +227,22 @@ export default function RappelsScreen({
     return reminder.category === activeFilter;
   });
 
-  const morningReminders = filteredReminders.filter(r =>
-    ['1', '2'].includes(r.id),
-  );
-  const eveningReminders = filteredReminders.filter(r =>
-    ['3', '4'].includes(r.id),
-  );
+  // Séparer les rappels par période (matin: avant 14h, soir: après 14h)
+  const morningReminders = filteredReminders.filter(r => {
+    if (r.hour !== undefined) {
+      return r.hour < 14;
+    }
+    // Pour les rappels horaires ou sans heure définie, les mettre dans "matin"
+    return r.repeatType === 'hourly' || ['1', '2'].includes(r.id);
+  });
+
+  const eveningReminders = filteredReminders.filter(r => {
+    if (r.hour !== undefined) {
+      return r.hour >= 14;
+    }
+    // Pour les rappels avec IDs fixes du soir
+    return ['3', '4'].includes(r.id);
+  });
 
   const completedCount = reminders.filter(r => r.isEnabled).length;
   const progress = Math.round((completedCount / reminders.length) * 100);
@@ -270,11 +308,20 @@ export default function RappelsScreen({
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Rappels</Text>
-          <Text style={styles.headerSubtitle}>Mercredi 24 Octobre</Text>
+          <Text style={styles.headerSubtitle}>{currentDate}</Text>
         </View>
-        <TouchableOpacity style={styles.addButton} onPress={() => setShowAddModal(true)}>
-          <MaterialIcons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={async () => {
+              await NotificationService.scheduleTestNotification(10);
+            }}>
+            <MaterialIcons name="notifications-active" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={() => setShowAddModal(true)}>
+            <MaterialIcons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -375,6 +422,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     marginTop: 4,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  testButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.orange,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addButton: {
     width: 40,

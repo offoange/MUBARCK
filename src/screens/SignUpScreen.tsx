@@ -144,8 +144,14 @@ export default function SignUpScreen({onSignUpSuccess, onLogin}: SignUpScreenPro
         theme: 'dark',
       });
 
-      // Sauvegarder le mot de passe (en production, utiliser un système sécurisé)
-      // Pour cette démo, on simule juste la connexion
+      // Sauvegarder le mot de passe pour la connexion future
+      await LocalStorageService.saveUserPassword(formData.password);
+
+      // Marquer l'utilisateur comme connecté
+      await LocalStorageService.setLoggedIn(true);
+
+      // Marquer l'onboarding comme complété
+      await LocalStorageService.setOnboardingCompleted(true);
       
       Alert.alert(
         'Inscription réussie!',

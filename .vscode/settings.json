@@ -1,0 +1,17 @@
+{
+  "java.import.gradle.enabled": false,
+  "java.autobuild.enabled": false,
+  "java.configuration.updateBuildConfiguration": "disabled",
+  "java.import.gradle.wrapper.enabled": false,
+  "java.import.maven.enabled": false,
+  "java.compile.nullAnalysis.mode": "disabled",
+  "java.project.importOnFirstTimeStartup": "disabled",
+  "java.project.importHint": false,
+  "java.server.launchMode": "LightWeight",
+  "java.import.exclusions": [
+    "**/android/**"
+  ],
+  "gradle.autoDetect": "off",
+  "gradle.enabled": false,
+  "gradle.nestedProjects": false
+}

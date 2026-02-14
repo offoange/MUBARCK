@@ -8,7 +8,13 @@ import {
   StatusBar,
   Image,
   Alert,
+  ActionSheetIOS,
+  Platform,
+  TextInput,
+  Modal,
+  Linking,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ProfileStatCard from '../components/ProfileStatCard';
@@ -120,6 +126,156 @@ export default function ProfileScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Recharger le profil quand on revient sur l'écran profil (score, niveau à jour)
+  useEffect(() => {
+    const refreshProfile = async () => {
+      if (activeTab === 'profile') {
+        try {
+          const savedProfile = await LocalStorageService.getUserProfile();
+          if (savedProfile) {
+            setUserProfile(savedProfile);
+          }
+        } catch (error) {
+          console.error('Erreur lors du rafraîchissement du profil:', error);
+        }
+      }
+    };
+    refreshProfile();
+  }, [activeTab]);
+
+  // Fonction pour changer l'avatar
+  const handleChangeAvatar = async () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Annuler', 'Prendre une photo', 'Choisir depuis la galerie'],
+          cancelButtonIndex: 0,
+        },
+        async (buttonIndex) => {
+          if (buttonIndex === 1) {
+            await pickImageFromCamera();
+          } else if (buttonIndex === 2) {
+            await pickImageFromGallery();
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Changer la photo de profil',
+        'Choisissez une option',
+        [
+          {text: 'Annuler', style: 'cancel'},
+          {text: 'Prendre une photo', onPress: pickImageFromCamera},
+          {text: 'Choisir depuis la galerie', onPress: pickImageFromGallery},
+        ]
+      );
+    }
+  };
+
+  const pickImageFromCamera = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission refusée', 'Vous devez autoriser l\'accès à la caméra.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await saveNewAvatar(result.assets[0].uri);
+    }
+  };
+
+  const pickImageFromGallery = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission refusée', 'Vous devez autoriser l\'accès à la galerie.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await saveNewAvatar(result.assets[0].uri);
+    }
+  };
+
+  const saveNewAvatar = async (uri: string) => {
+    try {
+      const updatedProfile = {...userProfile, avatar: uri};
+      setUserProfile(updatedProfile);
+      await LocalStorageService.saveUserProfile(updatedProfile);
+      Alert.alert('Succès', 'Votre photo de profil a été mise à jour !');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de l\'avatar:', error);
+      Alert.alert('Erreur', 'Impossible de sauvegarder la photo.');
+    }
+  };
+
+  // État pour le modal de changement de mot de passe
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Erreur', 'Le nouveau mot de passe doit contenir au moins 6 caractères.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert('Erreur', 'Les nouveaux mots de passe ne correspondent pas.');
+      return;
+    }
+    try {
+      const isValid = await LocalStorageService.verifyUserPassword(currentPassword);
+      if (!isValid) {
+        Alert.alert('Erreur', 'Le mot de passe actuel est incorrect.');
+        return;
+      }
+      await LocalStorageService.saveUserPassword(newPassword);
+      setShowPasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      Alert.alert('Succès', 'Votre mot de passe a été modifié avec succès.');
+    } catch (error) {
+      console.error('Erreur lors du changement de mot de passe:', error);
+      Alert.alert('Erreur', 'Impossible de modifier le mot de passe.');
+    }
+  };
+
+  const handleHelpSupport = () => {
+    Alert.alert(
+      'Aide et Support',
+      'Contactez-nous pour toute question ou problème :',
+      [
+        {
+          text: 'Email',
+          onPress: () => Linking.openURL('mailto:support@mubarakapp.com'),
+        },
+        {
+          text: 'WhatsApp',
+          onPress: () => Linking.openURL('https://wa.me/+33600000000'),
+        },
+        {text: 'Fermer', style: 'cancel'},
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -127,9 +283,6 @@ export default function ProfileScreen({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profil</Text>
-        <TouchableOpacity>
-          <Text style={styles.saveButton}>Enregistrer</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -145,7 +298,7 @@ export default function ProfileScreen({
               }}
               style={styles.avatar}
             />
-            <TouchableOpacity style={styles.editBadge}>
+            <TouchableOpacity style={styles.editBadge} onPress={handleChangeAvatar}>
               <MaterialIcons name="edit" size={14} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -267,21 +420,16 @@ export default function ProfileScreen({
           <SettingsItem
             icon="lock"
             iconColor={COLORS.primary}
-            title="Sécurité du compte"
+            title="Changer le mot de passe"
             showArrow
-          />
-          <SettingsItem
-            icon="palette"
-            iconColor={COLORS.pink}
-            title="Thème et apparence"
-            value="Sombre"
-            showArrow
+            onPress={() => setShowPasswordModal(true)}
           />
           <SettingsItem
             icon="help"
             iconColor={COLORS.emerald}
             title="Aide et support"
             showArrow
+            onPress={handleHelpSupport}
           />
         </View>
 
@@ -319,6 +467,69 @@ export default function ProfileScreen({
         onTabPress={onTabPress}
         onAddPress={() => console.log('Add pressed')}
       />
+
+      {/* Modal Changement de Mot de Passe */}
+      <Modal
+        visible={showPasswordModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPasswordModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Changer le mot de passe</Text>
+              <TouchableOpacity onPress={() => {
+                setShowPasswordModal(false);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmNewPassword('');
+              }}>
+                <MaterialIcons name="close" size={24} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalInputContainer}>
+              <Text style={styles.modalInputLabel}>Mot de passe actuel</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Entrez votre mot de passe actuel"
+                placeholderTextColor={COLORS.textSecondary}
+                secureTextEntry
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+              />
+            </View>
+
+            <View style={styles.modalInputContainer}>
+              <Text style={styles.modalInputLabel}>Nouveau mot de passe</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Minimum 6 caractères"
+                placeholderTextColor={COLORS.textSecondary}
+                secureTextEntry
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
+            </View>
+
+            <View style={styles.modalInputContainer}>
+              <Text style={styles.modalInputLabel}>Confirmer le nouveau mot de passe</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Confirmez le mot de passe"
+                placeholderTextColor={COLORS.textSecondary}
+                secureTextEntry
+                value={confirmNewPassword}
+                onChangeText={setConfirmNewPassword}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.modalButton} onPress={handleChangePassword}>
+              <Text style={styles.modalButtonText}>Modifier le mot de passe</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -339,11 +550,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.textPrimary,
-  },
-  saveButton: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
   },
   scrollView: {
     flex: 1,
@@ -442,5 +648,59 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 100,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    gap: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+  },
+  modalInputContainer: {
+    gap: 6,
+  },
+  modalInputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+  },
+  modalInput: {
+    backgroundColor: COLORS.background,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

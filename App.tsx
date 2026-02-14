@@ -11,7 +11,7 @@ import FocusTimerScreen from './src/screens/FocusTimerScreen';
 import BreathingExerciseScreen from './src/screens/BreathingExerciseScreen';
 import NotesScreen from './src/screens/NotesScreen';
 import LocalStorageService from './src/services/LocalStorageService';
-import NotificationService from './src/services/NotificationServiceSimple';
+import NotificationService from './src/services/NotificationService';
 import {ScheduleMainScreen} from './src/screens/schedule';
 import {ScheduleProvider} from './src/context/ScheduleContext';
 
@@ -27,7 +27,7 @@ function App(): React.JSX.Element {
   useEffect(() => {
     checkAuthStatus();
     // Demander les permissions de notification au démarrage
-    NotificationService.requestPermissions();
+    NotificationService.initialize();
   }, []);
 
   const checkAuthStatus = async () => {
@@ -38,11 +38,21 @@ function App(): React.JSX.Element {
       console.log('Auth check - isLoggedIn:', isLoggedIn, 'hasCompletedOnboarding:', hasCompletedOnboarding);
 
       if (isLoggedIn) {
+        // Mettre à jour le streak, le niveau et le score bien-être
+        await LocalStorageService.updateDayStreak();
+        await LocalStorageService.updateLevel();
+        await LocalStorageService.calculateWellnessScore();
         setAuthScreen('main');
-      } else if (hasCompletedOnboarding) {
-        setAuthScreen('login');
       } else {
-        setAuthScreen('onboarding');
+        // Vérifier si un compte existe déjà
+        const hasAccount = await LocalStorageService.hasUserAccount();
+        if (hasAccount) {
+          setAuthScreen('login');
+        } else if (hasCompletedOnboarding) {
+          setAuthScreen('signup');
+        } else {
+          setAuthScreen('onboarding');
+        }
       }
     } catch (error) {
       console.error('Erreur lors de la vérification de l\'authentification:', error);
@@ -61,17 +71,23 @@ function App(): React.JSX.Element {
 
   const handleSignUpSuccess = async () => {
     await LocalStorageService.setLoggedIn(true);
+    // Initialiser le streak pour le nouvel utilisateur
+    await LocalStorageService.updateDayStreak();
     setAuthScreen('main');
   };
 
   const handleLoginSuccess = async () => {
     await LocalStorageService.setLoggedIn(true);
+    // Mettre à jour le streak, le niveau et le score bien-être
+    await LocalStorageService.updateDayStreak();
+    await LocalStorageService.updateLevel();
+    await LocalStorageService.calculateWellnessScore();
     setAuthScreen('main');
   };
 
   const handleLogout = async () => {
-    await LocalStorageService.clearAllData();
-    setAuthScreen('onboarding');
+    await LocalStorageService.logout();
+    setAuthScreen('login');
   };
 
   const renderMainScreen = () => {

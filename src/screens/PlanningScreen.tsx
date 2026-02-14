@@ -118,6 +118,23 @@ export default function PlanningScreen({
     loadData();
   }, []);
 
+  // Recharger le profil quand on revient sur l'écran
+  useEffect(() => {
+    const refreshProfile = async () => {
+      if (activeTab === 'planning') {
+        try {
+          const savedProfile = await LocalStorageService.getUserProfile();
+          if (savedProfile) {
+            setUserProfile(savedProfile);
+          }
+        } catch (error) {
+          console.error('Erreur lors du rafraîchissement du profil:', error);
+        }
+      }
+    };
+    refreshProfile();
+  }, [activeTab]);
+
   const handleDaySelect = async (dayNumber: number) => {
     try {
       const updatedDays = days.map(day => ({

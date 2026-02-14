@@ -18,7 +18,7 @@ import ScheduleItem from '../components/ScheduleItem';
 import BottomNavigation from '../components/BottomNavigation';
 import DailyGoalModal from '../components/DailyGoalModal';
 import WellnessEditModal from '../components/WellnessEditModal';
-import LocalStorageService, {WellnessData, UserProfile, DailyGoal} from '../services/LocalStorageService';
+import LocalStorageService, {WellnessData, UserProfile, DailyGoal, ScheduleItem as ScheduleItemType} from '../services/LocalStorageService';
 import {useSchedule} from '../context/ScheduleContext';
 
 const COLORS = {
@@ -106,6 +106,7 @@ export default function HomeScreen({
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showWellnessModal, setShowWellnessModal] = useState(false);
   const [wellnessEditType, setWellnessEditType] = useState<'sleep' | 'steps' | 'water'>('sleep');
+  const [planningItems, setPlanningItems] = useState<ScheduleItemType[]>([]);
 
   // Obtenir la date du jour au format YYYY-MM-DD
   const today = useMemo(() => {
@@ -126,11 +127,11 @@ export default function HomeScreen({
       subtitle: string;
       icon: string;
       color: string;
-      type: 'cours' | 'activite';
+      type: 'cours' | 'activite' | 'planning';
       isCompleted?: boolean;
     }> = [];
 
-    // Ajouter les cours
+    // Ajouter les cours du ScheduleContext
     todayCours.forEach(cours => {
       events.push({
         id: cours.id,
@@ -158,9 +159,23 @@ export default function HomeScreen({
       });
     });
 
+    // Ajouter les éléments du planning (LocalStorageService)
+    planningItems.forEach(item => {
+      events.push({
+        id: item.id,
+        time: item.time,
+        title: item.title,
+        subtitle: item.subtitle || item.timeRange,
+        icon: item.icon,
+        color: item.backgroundColor || COLORS.primary,
+        type: 'planning',
+        isCompleted: false,
+      });
+    });
+
     // Trier par heure
     return events.sort((a, b) => a.time.localeCompare(b.time));
-  }, [todayCours, todayActivites]);
+  }, [todayCours, todayActivites, planningItems]);
 
   // Charger les données utilisateur et de bien-être au démarrage
   useEffect(() => {
@@ -185,6 +200,12 @@ export default function HomeScreen({
         if (savedDailyGoal) {
           setDailyGoal(savedDailyGoal);
         }
+
+        // Charger les éléments du planning
+        const savedPlanningItems = await LocalStorageService.getSchedule();
+        if (savedPlanningItems && savedPlanningItems.length > 0) {
+          setPlanningItems(savedPlanningItems);
+        }
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
         Alert.alert('Erreur', 'Impossible de charger vos données.');
@@ -194,6 +215,30 @@ export default function HomeScreen({
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Recharger les données quand on revient sur l'écran d'accueil
+  useEffect(() => {
+    const refreshData = async () => {
+      if (activeTab === 'home') {
+        try {
+          // Recharger le profil (pour l'avatar mis à jour)
+          const savedProfile = await LocalStorageService.getUserProfile();
+          if (savedProfile) {
+            setUserProfile(savedProfile);
+          }
+          // Recharger le planning
+          const savedPlanningItems = await LocalStorageService.getSchedule();
+          if (savedPlanningItems) {
+            setPlanningItems(savedPlanningItems);
+          }
+        } catch (error) {
+          console.error('Erreur lors du rafraîchissement des données:', error);
+        }
+      }
+    };
+
+    refreshData();
+  }, [activeTab]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -452,6 +497,8 @@ export default function HomeScreen({
             }
             setWellnessData(updatedWellnessData);
             await LocalStorageService.saveWellnessData(updatedWellnessData);
+            // Recalculer le score bien-être après modification
+            await LocalStorageService.calculateWellnessScore();
           } catch (error) {
             console.error('Erreur lors de la sauvegarde:', error);
             Alert.alert('Erreur', 'Impossible de sauvegarder les données.');

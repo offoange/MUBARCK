@@ -119,7 +119,7 @@ export default function FocusTimerScreen({onClose}: FocusTimerScreenProps) {
 
       // Notification à l'utilisateur
       Alert.alert(
-        '🔕 Mode Focus Activé',
+        'Mode Focus Activé',
         'Pour une concentration optimale:\n\n' +
         '• Activez le mode "Ne Pas Déranger" dans les paramètres de votre téléphone\n' +
         '• Fermez les autres applications\n' +
@@ -232,7 +232,7 @@ export default function FocusTimerScreen({onClose}: FocusTimerScreenProps) {
           <View style={styles.timerInner}>
             <Text style={styles.timerText}>{formatTime(timeRemaining)}</Text>
             <Text style={styles.timerLabel}>
-              {isFocusModeActive ? '🔕 Mode Focus' : 'Prêt'}
+              {isFocusModeActive ? ' Mode Focus' : 'Prêt'}
             </Text>
           </View>
         </View>
