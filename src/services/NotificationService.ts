@@ -86,11 +86,60 @@ class NotificationService {
 
   /**
    * Programme une notification quotidienne à une heure spécifique
+   * Si l'heure n'est pas encore passée aujourd'hui, programme pour aujourd'hui
+   * Sinon, programme pour demain (comportement DAILY standard)
    */
   async scheduleDaily(reminder: ReminderNotification): Promise<string | null> {
     try {
       await this.initialize();
 
+      const now = new Date();
+      const targetToday = new Date();
+      targetToday.setHours(reminder.hour, reminder.minute, 0, 0);
+
+      // Si l'heure est dans le futur aujourd'hui, programmer pour aujourd'hui
+      if (targetToday > now) {
+        const secondsUntil = Math.floor((targetToday.getTime() - now.getTime()) / 1000);
+        
+        const notificationId = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: reminder.title,
+            body: reminder.body,
+            sound: 'default',
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+            data: {reminderId: reminder.id},
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: secondsUntil,
+            repeats: false,
+            channelId: 'reminders',
+          },
+        });
+
+        console.log(`Notification programmée pour aujourd'hui dans ${secondsUntil}s: ${notificationId}`);
+        
+        // Programmer aussi la répétition quotidienne pour les jours suivants
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: reminder.title,
+            body: reminder.body,
+            sound: 'default',
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+            data: {reminderId: reminder.id},
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour: reminder.hour,
+            minute: reminder.minute,
+            channelId: 'reminders',
+          },
+        });
+
+        return notificationId;
+      }
+
+      // Sinon, utiliser le trigger DAILY standard (demain)
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: reminder.title,

@@ -193,9 +193,18 @@ export default function RappelsScreen({
         } else if (reminder.repeatType === 'daily' && reminder.hour !== undefined) {
           notificationId = await NotificationService.scheduleDaily(notifData) || undefined;
           const timeStr = `${String(reminder.hour).padStart(2, '0')}:${String(reminder.minute || 0).padStart(2, '0')}`;
+          
+          // Vérifier si la notification sera aujourd'hui ou demain
+          const now = new Date();
+          const targetToday = new Date();
+          targetToday.setHours(reminder.hour, reminder.minute || 0, 0, 0);
+          
+          const isToday = targetToday > now;
+          const dayText = isToday ? "aujourd'hui" : 'demain';
+          
           Alert.alert(
             'Rappel activé',
-            `Vous recevrez une notification tous les jours à ${timeStr}.`
+            `Prochaine notification ${dayText} à ${timeStr}, puis tous les jours.`
           );
         }
       } else {
