@@ -158,59 +158,9 @@ const DEFAULT_REMINDERS: Reminder[] = [
   },
 ];
 
-const DEFAULT_SCHEDULE: ScheduleItem[] = [
-  {
-    id: '1',
-    time: '09:00',
-    icon: 'calculate',
-    title: 'Mathématiques',
-    subtitle: 'Chapitre 4: Algèbre',
-    timeRange: '09:00 - 10:30',
-    backgroundColor: '#6c2bee',
-    iconBgColor: 'rgba(255,255,255,0.2)',
-  },
-  {
-    id: '2',
-    time: '11:00',
-    icon: 'science',
-    title: 'Physique',
-    subtitle: 'TP Laboratoire',
-    timeRange: '11:00 - 12:30',
-    backgroundColor: '#be185d',
-    iconBgColor: 'rgba(255,255,255,0.2)',
-  },
-  {
-    id: '3',
-    time: '14:00',
-    icon: 'psychology',
-    title: 'Étude Personnelle',
-    subtitle: 'Bibliothèque',
-    timeRange: '14:00 - 16:00',
-    backgroundColor: '#0891b2',
-    iconBgColor: 'rgba(255,255,255,0.2)',
-  },
-];
+const DEFAULT_SCHEDULE: ScheduleItem[] = [];
 
-const DEFAULT_GOALS: Goal[] = [
-  {
-    id: '1',
-    icon: 'menu-book',
-    iconColor: '#6c2bee',
-    title: 'Daily Study Target',
-    subtitle: 'Hours per day',
-    progress: 50,
-    displayValue: '4h',
-  },
-  {
-    id: '2',
-    icon: 'bedtime',
-    iconColor: '#38bdf8',
-    title: 'Sleep Goal',
-    subtitle: 'Target duration',
-    progress: 100,
-    displayValue: '8h 00m',
-  },
-];
+const DEFAULT_GOALS: Goal[] = [];
 
 const DEFAULT_SETTINGS: Settings = {
   morningMotivation: true,
