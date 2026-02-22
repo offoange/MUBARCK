@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "MubarakApp",
-    "slug": "mubarakapp",
+    "name": "StudentFit",
+    "slug": "studentfit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,14 +19,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mubarakapp"
+      "bundleIdentifier": "com.studentfit"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#161022"
       },
-      "package": "com.mubarakapp"
+      "package": "com.studentfit"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -38,6 +38,6 @@
     },
     "owner": "offo"
   },
-  "name": "MubarakApp",
-  "displayName": "MubarakApp"
+  "name": "StudentFit",
+  "displayName": "StudentFit"
 }

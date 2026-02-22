@@ -7,7 +7,7 @@ workflows:
       groups:
         - keystore_credentials
       vars:
-        PACKAGE_NAME: "com.mubarakapp"
+        PACKAGE_NAME: "com.studentfit"
         CM_GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
       node: 18
       java: 17
@@ -64,7 +64,7 @@ workflows:
         - expo_credentials
         - keystore_credentials
       vars:
-        PACKAGE_NAME: "com.mubarakapp"
+        PACKAGE_NAME: "com.studentfit"
       node: 18
       java: 17
     cache:
@@ -128,9 +128,9 @@ workflows:
         - app_store_credentials
         - ios_signing
       vars:
-        BUNDLE_ID: "com.mubarakapp"
-        XCODE_WORKSPACE: "ios/MubarakApp.xcworkspace"
-        XCODE_SCHEME: "MubarakApp"
+        BUNDLE_ID: "com.studentfit"
+        XCODE_WORKSPACE: "ios/StudentFit.xcworkspace"
+        XCODE_SCHEME: "StudentFit"
       node: 18
       xcode: 15.4
       cocoapods: 1.15
@@ -198,7 +198,7 @@ workflows:
         notify:
           success: true
           failure: true
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: false
+      # app_store_connect:
+      #   auth: integration
+      #   submit_to_testflight: false
         
