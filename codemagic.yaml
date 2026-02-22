@@ -24,7 +24,7 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
-          npm ci || npm install
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
       - name: Verify project structure
         script: |
           if [ ! -d "$CM_BUILD_DIR/android" ]; then
@@ -80,7 +80,7 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
-          npm ci || npm install
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
       - name: Install Expo CLI and EAS CLI
         script: |
           npm install -g eas-cli
@@ -95,7 +95,7 @@ workflows:
       - name: Expo prebuild
         script: |
           npx expo prebuild --platform android --clean --no-install
-          npm install
+          npm install --legacy-peer-deps
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
@@ -149,7 +149,7 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
-          npm ci || npm install
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
       - name: Install EAS CLI
         script: |
           npm install -g eas-cli
@@ -164,7 +164,7 @@ workflows:
       - name: Expo prebuild iOS
         script: |
           npx expo prebuild --platform ios --clean --no-install
-          npm install
+          npm install --legacy-peer-deps
       - name: Install CocoaPods dependencies
         script: |
           cd ios
