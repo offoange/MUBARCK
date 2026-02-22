@@ -133,7 +133,7 @@ workflows:
         XCODE_SCHEME: "StudentFit"
       node: 18
       xcode: latest
-      cocoapods: 1.15
+      cocoapods: default
       java: 17
     cache:
       cache_paths:
@@ -167,13 +167,11 @@ workflows:
           npm install --legacy-peer-deps
       - name: Install CocoaPods dependencies
         script: |
-          # Nettoyer le cache CocoaPods pour éviter les erreurs de fichiers existants
-          pod cache clean --all
-          rm -rf ~/Library/Caches/CocoaPods
           cd ios
+          # Supprimer complètement les Pods existants
           rm -rf Pods Podfile.lock
-          pod repo update
-          pod install --repo-update
+          # Installation simple sans mise à jour du repo
+          pod install --verbose
       - name: Verify workspace exists
         script: |
           if [ ! -d "$CM_BUILD_DIR/$XCODE_WORKSPACE" ]; then
