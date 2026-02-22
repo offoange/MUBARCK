@@ -12,7 +12,8 @@
       "backgroundColor": "#161022"
     },
     "plugins": [
-      "./plugins/withAndroidStyles"
+      "./plugins/withAndroidStyles",
+      "./plugins/withDisablePushNotifications"
     ],
     "assetBundlePatterns": [
       "**/*"
