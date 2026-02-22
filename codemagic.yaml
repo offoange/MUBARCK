@@ -132,7 +132,7 @@ workflows:
         XCODE_WORKSPACE: "ios/StudentFit.xcworkspace"
         XCODE_SCHEME: "StudentFit"
       node: 18
-      xcode: 15.4
+      xcode: 15.2
       cocoapods: 1.15
       java: 17
     cache:
