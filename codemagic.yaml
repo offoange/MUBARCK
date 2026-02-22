@@ -167,7 +167,11 @@ workflows:
           npm install --legacy-peer-deps
       - name: Install CocoaPods dependencies
         script: |
+          # Nettoyer le cache CocoaPods pour éviter les erreurs de fichiers existants
+          pod cache clean --all
+          rm -rf ~/Library/Caches/CocoaPods
           cd ios
+          rm -rf Pods Podfile.lock
           pod repo update
           pod install --repo-update
       - name: Verify workspace exists
