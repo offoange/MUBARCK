@@ -8,21 +8,45 @@ workflows:
         - keystore_credentials
       vars:
         PACKAGE_NAME: "com.mubarakapp"
+        CM_GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
       node: 18
       java: 17
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $CM_BUILD_DIR/node_modules
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "main"
+          include: true
     scripts:
       - name: Install dependencies
         script: |
-          npm install
+          npm ci || npm install
+      - name: Verify project structure
+        script: |
+          if [ ! -d "$CM_BUILD_DIR/android" ]; then
+            echo "❌ Erreur : le dossier android/ est introuvable."
+            echo "Exécutez 'npx expo prebuild --platform android' localement d'abord."
+            exit 1
+          fi
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
-      - name: Build Android release
+      - name: Clean and Build Android release
         script: |
           cd android
-          ./gradlew assembleRelease
+          chmod +x gradlew
+          ./gradlew clean
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --stacktrace \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError"
     artifacts:
       - android/app/build/outputs/**/*.apk
+      - android/app/build/reports/**
     publishing:
       email:
         recipients:
@@ -38,25 +62,55 @@ workflows:
     environment:
       groups:
         - expo_credentials
+        - keystore_credentials
       vars:
         PACKAGE_NAME: "com.mubarakapp"
       node: 18
+      java: 17
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $CM_BUILD_DIR/node_modules
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "main"
+          include: true
     scripts:
       - name: Install dependencies
         script: |
-          npm install
-      - name: Install Expo CLI
+          npm ci || npm install
+      - name: Install Expo CLI and EAS CLI
         script: |
-          npm install -g expo-cli eas-cli
+          npm install -g eas-cli
+          npx expo --version
+          eas --version
+      - name: Verify Expo config
+        script: |
+          if [ ! -f "app.json" ] && [ ! -f "app.config.js" ] && [ ! -f "app.config.ts" ]; then
+            echo "❌ Erreur : aucun fichier app.json ou app.config.js/ts trouvé."
+            exit 1
+          fi
       - name: Expo prebuild
         script: |
-          npx expo prebuild --platform android --clean
+          npx expo prebuild --platform android --clean --no-install
+          npm install
+      - name: Set Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
       - name: Build Android APK
         script: |
           cd android
-          ./gradlew assembleRelease
+          chmod +x gradlew
+          ./gradlew clean
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --stacktrace \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError"
     artifacts:
       - android/app/build/outputs/**/*.apk
+      - android/app/build/reports/**
     publishing:
       email:
         recipients:
@@ -78,22 +132,52 @@ workflows:
         XCODE_WORKSPACE: "ios/MubarakApp.xcworkspace"
         XCODE_SCHEME: "MubarakApp"
       node: 18
-      xcode: latest
-      cocoapods: default
+      xcode: 15.4
+      cocoapods: 1.15
+      java: 17
+    cache:
+      cache_paths:
+        - $HOME/Library/Caches/CocoaPods
+        - $CM_BUILD_DIR/node_modules
+        - $CM_BUILD_DIR/ios/Pods
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "main"
+          include: true
     scripts:
       - name: Install dependencies
         script: |
-          npm install
-      - name: Install Expo CLI
+          npm ci || npm install
+      - name: Install EAS CLI
         script: |
-          npm install -g expo-cli eas-cli
+          npm install -g eas-cli
+          npx expo --version
+          eas --version
+      - name: Verify Expo config
+        script: |
+          if [ ! -f "app.json" ] && [ ! -f "app.config.js" ] && [ ! -f "app.config.ts" ]; then
+            echo "❌ Erreur : aucun fichier app.json ou app.config.js/ts trouvé."
+            exit 1
+          fi
       - name: Expo prebuild iOS
         script: |
-          npx expo prebuild --platform ios --clean
+          npx expo prebuild --platform ios --clean --no-install
+          npm install
       - name: Install CocoaPods dependencies
         script: |
           cd ios
-          pod install
+          pod repo update
+          pod install --repo-update
+      - name: Verify workspace exists
+        script: |
+          if [ ! -d "$CM_BUILD_DIR/$XCODE_WORKSPACE" ]; then
+            echo "❌ Erreur : workspace $XCODE_WORKSPACE introuvable."
+            echo "Contenu du dossier ios/ :"
+            ls -la "$CM_BUILD_DIR/ios/"
+            exit 1
+          fi
       - name: Set up code signing
         script: |
           xcode-project use-profiles
@@ -101,10 +185,12 @@ workflows:
         script: |
           xcode-project build-ipa \
             --workspace "$CM_BUILD_DIR/$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
+            --scheme "$XCODE_SCHEME" \
+            --clean
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Reports/**
     publishing:
       email:
         recipients:
@@ -115,3 +201,4 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: false
+        
